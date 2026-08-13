@@ -1,816 +1,152 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Mini Chat</title>
-
+  <title>Mini Chat v3</title>
   <style>
-    /* ---------- BACKGROUND ---------- */
-    body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #f0f0f0, #dcd4f7, #e8e0ff);
-      background-size: 400% 400%;
-      animation: gradientBG 15s ease infinite;
-      display: flex;
-      justify-content: center;
-      margin-top: 40px;
-      transition: background 0.3s, color 0.3s;
+    html, body { margin:0; padding:0; height:100%; font-family: Arial, sans-serif; display:flex; justify-content:center; align-items:center; transition: background 0.5s, color 0.5s; }
+    body.dark { background:#1e1e1e; color:#eee; }
+
+    #chatBox {
+      width:400px; max-width:90%; height:600px; display:flex; flex-direction:column;
+      border-radius:16px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.25);
+      background: linear-gradient(135deg,#f8f8f8,#d9d5f6);
+      transition: background 0.5s;
     }
 
-    @keyframes gradientBG {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
+    #chatHeader { text-align:center; font-weight:bold; padding:12px; border-bottom:1px solid #ccc; }
+    #messages { flex:1; padding:12px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; }
 
-    /* ---------- DARK MODE ---------- */
-    body.dark {
-      background: linear-gradient(135deg, #1f1f1f, #3a225f, #2b1e44);
-      color: #eee;
-    }
+    .message { max-width:70%; padding:12px 16px; border-radius:20px; position:relative; font-size:16px; transition: background 0.5s; }
+    .me { background:#7c3aed; color:white; align-self:flex-end; }
+    .other { background:#d9d5f6; color:#111; align-self:flex-start; }
 
-    body.dark #chat {
-      background: #2b1e44;
-    }
+    .username { font-size:12px; font-weight:bold; margin-bottom:4px; opacity:0.9; }
+    .reply-preview { font-size:12px; opacity:0.7; border-left:2px solid currentColor; padding-left:6px; margin-bottom:6px; }
+    .reply-btn { position:absolute; top:-22px; right:6px; font-size:11px; background:rgba(0,0,0,0.25); color:white; padding:3px 6px; border-radius:6px; cursor:pointer; opacity:0; pointer-events:none; transition:opacity 0.4s ease; }
+    .message:hover .reply-btn, .reply-btn:hover { opacity:1; pointer-events:auto; }
 
-    body.dark .other {
-      background: #3f2a6b;
-      color: #eee;
-    }
+    .time { font-size:12px; opacity:0.7; margin-top:4px; text-align:right; }
 
-    body.dark .me {
-      background: #7c3aed;
-    }
+    #replyingTo { font-size:14px; padding:8px; background:rgba(0,0,0,0.1); display:none; border-radius:12px; margin:4px 12px; }
 
-    body.dark #replyingTo {
-      background: rgba(255,255,255,0.1);
-    }
+    #bottomBar { display:flex; gap:6px; padding:10px; border-top:1px solid rgba(0,0,0,0.1); }
+    #bottomBar input, #bottomBar button { flex:1; border-radius:12px; padding:8px; }
+    #bottomBar button { flex:0 0 auto; background:#7c3aed; color:white; cursor:pointer; }
 
-    /* ---------- ROOM SELECT ---------- */
-    #roomSelection {
-      width: 400px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    input, button {
-      padding: 12px;
-      border-radius: 8px;
-      border: none;
-      outline: none;
-      font-size: 14px;
-      box-sizing: border-box;
-    }
-
-    button {
-      background: #7c3aed;
-      color: white;
-      cursor: pointer;
-    }
-
-    button:hover {
-      filter: brightness(1.08);
-    }
-
-    /* ---------- CHAT ---------- */
-    #chat {
-      width: 400px;
-      display: none;
-      flex-direction: column;
-      background: #f8f8f8;
-      border-radius: 20px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-      overflow: hidden;
-      transition: background 0.3s;
-    }
-
-    #chatHeader {
-      text-align: center;
-      padding: 12px;
-      font-weight: bold;
-      border-bottom: 1px solid #ccc;
-    }
-
-    #messages {
-      height: 350px;
-      overflow-y: auto;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .message {
-      max-width: 70%;
-      padding: 10px;
-      border-radius: 15px;
-      position: relative;
-      word-wrap: break-word;
-    }
-
-    .me {
-      align-self: flex-end;
-      background: #7c3aed;
-      color: white;
-    }
-
-    .other {
-      align-self: flex-start;
-      background: #d9d5f6;
-      color: #111;
-    }
-
-    .username {
-      font-size: 11px;
-      font-weight: bold;
-      margin-bottom: 2px;
-      opacity: 0.9;
-    }
-
-    .reply-preview {
-      font-size: 11px;
-      opacity: 0.8;
-      border-left: 2px solid currentColor;
-      padding-left: 6px;
-      margin-bottom: 4px;
-    }
-
-    .reply-btn {
-      position: absolute;
-      top: -18px;
-      right: 6px;
-      font-size: 10px;
-      background: rgba(0,0,0,0.25);
-      color: white;
-      padding: 3px 6px;
-      border-radius: 6px;
-      cursor: pointer;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.4s ease;
-    }
-
-    .message:hover .reply-btn,
-    .reply-btn:hover {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .time {
-      font-size: 10px;
-      opacity: 0.8;
-      margin-top: 2px;
-      text-align: right;
-    }
-
-    #replyingTo {
-      font-size: 12px;
-      padding: 6px;
-      background: rgba(0,0,0,0.1);
-      display: none;
-    }
-
-    #username,
-    #message {
-      margin: 0 8px 8px 8px;
-    }
-
-    #chat > button {
-      margin: 0 8px 8px 8px;
-    }
+    #themeSelect, #roomNameBtn, #darkModeBtn { margin-top:6px; border-radius:8px; padding:6px; }
   </style>
 </head>
-
 <body>
-
-<!-- ---------- ROOM SELECTION ---------- -->
-
-<div id="roomSelection">
-
-  <input
-    id="roomCodeInput"
-    placeholder="Enter Room Code"
-  >
-
-  <button onclick="joinRoom()">
-    Join Room
-  </button>
-
-  <button onclick="createRoom()">
-    Create New Room
-  </button>
-
-</div>
-
-
-<!-- ---------- CHAT ---------- -->
-
-<div id="chat">
-
-  <div id="chatHeader"></div>
-
-  <div id="messages"></div>
-
-  <div id="replyingTo"></div>
-
-  <input
-    id="username"
-    placeholder="Your name"
-  >
-
-  <input
-    id="message"
-    placeholder="Type a message"
-  >
-
-  <button onclick="sendMessage()">
-    Send
-  </button>
-
-  <button onclick="toggleDarkMode()">
-    Toggle Dark Mode
-  </button>
-
-</div>
-
-
-<!-- ---------- FIREBASE ---------- -->
-
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
-
-<script>
-
-  /* =====================================================
-     FIREBASE
-     ===================================================== */
-
-  firebase.initializeApp({
-
-    apiKey: "AIzaSyCR_fzXg5elyqPiBFxjn7l98y7pHFtFrBI",
-
-    authDomain: "chat-85bb8.firebaseapp.com",
-
-    databaseURL:
-      "https://chat-85bb8-default-rtdb.firebaseio.com",
-
-    projectId: "chat-85bb8",
-
-    appId:
-      "1:925323589808:web:6b599f66cbbbe0f7e1e375"
-
-  });
-
-
-  /* =====================================================
-     VARIABLES
-     ===================================================== */
-
-  let roomCode = "";
-
-  let db = null;
-
-  let myUser = "";
-
-  let replyData = null;
-
-  let unread = 0;
-
-  const baseTitle = "Mini Chat";
-
-
-  /* =====================================================
-     SAVED USERNAME
-     ===================================================== */
-
-  const savedUsername =
-    localStorage.getItem("miniChatUsername");
-
-  if (savedUsername) {
-
-    username.value = savedUsername;
-
-    myUser = savedUsername;
-
-  }
-
-
-  /* =====================================================
-     ROOM CODE GENERATOR
-     ===================================================== */
-
-  function randomRoomCode() {
-
-    return Math.random()
-      .toString(36)
-      .substring(2, 7)
-      .toUpperCase();
-
-  }
-
-
-  /* =====================================================
-     CREATE ROOM
-     ===================================================== */
-
-  function createRoom() {
-
-    roomCode = randomRoomCode();
-
-    startChat();
-
-  }
-
-
-  /* =====================================================
-     JOIN ROOM
-     ===================================================== */
-
-  function joinRoom() {
-
-    const enteredCode =
-      roomCodeInput.value
-        .trim()
-        .toUpperCase();
-
-    if (!enteredCode) {
-
-      alert("Please enter a room code.");
-
-      return;
-
-    }
-
-    roomCode = enteredCode;
-
-    startChat();
-
-  }
-
-
-  /* =====================================================
-     START CHAT
-     ===================================================== */
-
-  function startChat() {
-
-    roomSelection.style.display = "none";
-
-    chat.style.display = "flex";
-
-    chatHeader.textContent =
-      "Room: " + roomCode;
-
-
-    /*
-      If another Firebase listener exists,
-      remove it first.
-    */
-
-    if (db) {
-
-      db.off();
-
-    }
-
-
-    /*
-      Connect to this room.
-    */
-
-    db = firebase
-      .database()
-      .ref(
-        "rooms/" +
-        roomCode +
-        "/messages"
-      );
-
-
-    /*
-      Clear messages currently on screen.
-    */
-
-    messages.innerHTML = "";
-
-
-    /*
-      Listen for messages.
-    */
-
-    db.on("child_added", snap => {
-
-      const msg = snap.val();
-
-
-      /*
-        Notification when the tab
-        isn't currently focused.
-      */
-
-      if (!document.hasFocus()) {
-
-        unread++;
-
-        document.title =
-          `${baseTitle} (${unread})`;
-
-      }
-
-
-      renderMessage(msg);
-
+  <div id="chatBox">
+    <div id="chatHeader">Room</div>
+    <div id="messages"></div>
+    <div id="replyingTo"></div>
+    <div id="bottomBar">
+      <input id="username" placeholder="Your name">
+      <input id="message" placeholder="Type a message">
+      <button onclick="sendMessage()">Send</button>
+    </div>
+    <select id="themeSelect" onchange="applyThemeFromSelect()">
+      <option value="default">Default</option>
+      <option value="sunset">Sunset</option>
+      <option value="ocean">Ocean</option>
+      <option value="purple">Purple</option>
+    </select>
+    <button id="darkModeBtn" onclick="toggleDarkMode()">Dark Mode</button>
+    <button id="roomNameBtn" onclick="setCustomRoomName(currentRoom)">Rename Chat</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script>
+    // ---------------- Firebase Init ----------------
+    firebase.initializeApp({
+      apiKey: "AIzaSyCR_fzXg5elyqPiBFxjn7l98y7pHFtFrBI",
+      authDomain: "chat-85bb8.firebaseapp.com",
+      databaseURL: "https://chat-85bb8-default-rtdb.firebaseio.com",
+      projectId: "chat-85bb8",
+      appId: "1:925323589808:web:6b599f66cbbbe0f7e1e375"
     });
 
-  }
+    let currentRoom="", db, myUser="", replyData=null, unread=0;
+    const baseTitle="Mini Chat";
 
-
-  /* =====================================================
-     TAB NOTIFICATIONS
-     ===================================================== */
-
-  window.addEventListener(
-    "focus",
-    () => {
-
-      unread = 0;
-
-      document.title = baseTitle;
-
-    }
-  );
-
-
-  /* =====================================================
-     SEND MESSAGE
-     ===================================================== */
-
-  function sendMessage() {
-
-    /*
-      Get username.
-    */
-
-    if (!myUser) {
-
-      myUser =
-        username.value.trim();
-
-      if (!myUser) {
-
-        alert(
-          "Please enter your name first."
-        );
-
-        username.focus();
-
-        return;
-
-      }
-
-
-      /*
-        Remember username.
-      */
-
-      localStorage.setItem(
-        "miniChatUsername",
-        myUser
-      );
-
-    }
-
-
-    /*
-      Get message text.
-    */
-
-    const text =
-      message.value.trim();
-
-
-    /*
-      Don't send empty messages.
-    */
-
-    if (!text) {
-
-      return;
-
-    }
-
-
-    /*
-      Make sure Firebase
-      is connected to a room.
-    */
-
-    if (!db) {
-
-      alert(
-        "You aren't connected to a room."
-      );
-
-      return;
-
-    }
-
-
-    /*
-      Create message object.
-    */
-
-    const newMessage = {
-
-      user: myUser,
-
-      text: text,
-
-      reply: replyData,
-
-      timestamp: Date.now()
-
+    const themes={
+      default:{bg:"linear-gradient(135deg,#f8f8f8,#d9d5f6)", me:"#7c3aed", other:"#d9d5f6"},
+      sunset:{bg:"linear-gradient(135deg,#ffecd2,#feb47b)", me:"#ff7e5f", other:"#feb47b"},
+      ocean:{bg:"linear-gradient(135deg,#a8edea,#0083b0)", me:"#00b4db", other:"#0083b0"},
+      purple:{bg:"linear-gradient(135deg,#e0d4ff,#c9b7ff)", me:"#7c3aed", other:"#c9b7ff"}
     };
 
+    // ---------------- Room functions ----------------
+    function randomRoomCode(){ return Math.random().toString(36).substring(2,7).toUpperCase(); }
+    function joinRoomWithCode(code){ currentRoom=code; startChat(); }
+    function createRoom(){ joinRoomWithCode(randomRoomCode()); }
 
-    /*
-      SEND TO FIREBASE.
-
-      Using .then() and .catch()
-      lets us see if Firebase rejects
-      the message.
-    */
-
-    db.push(newMessage)
-
-      .then(() => {
-
-        /*
-          Message successfully sent.
-        */
-
-        replyData = null;
-
-        replyingTo.style.display =
-          "none";
-
-        message.value = "";
-
-        message.focus();
-
-      })
-
-      .catch(error => {
-
-        console.error(
-          "Mini Chat Firebase error:",
-          error
-        );
-
-        alert(
-          "Message could not be sent.\n\n" +
-          error.message
-        );
-
+    function startChat(){
+      document.getElementById("chatHeader").textContent=currentRoom;
+      db=firebase.database().ref("rooms/"+currentRoom+"/messages");
+      document.getElementById("messages").innerHTML="";
+      loadTheme(currentRoom); applyRoomName(currentRoom);
+      db.off();
+      db.on("child_added",snap=>{
+        if(!document.hasFocus()){ unread++; document.title=`${baseTitle} (${unread})`; }
+        renderMessage(snap.val());
       });
+    }
+    window.addEventListener("focus",()=>{ unread=0; document.title=baseTitle; });
 
-  }
-
-
-  /* =====================================================
-     RENDER MESSAGE
-     ===================================================== */
-
-  function renderMessage(msg) {
-
-    const div =
-      document.createElement("div");
-
-
-    /*
-      Determine whether the message
-      belongs to us.
-    */
-
-    div.className =
-      "message " +
-      (
-        msg.user === myUser
-          ? "me"
-          : "other"
-      );
-
-
-    /* ---------- REPLY BUTTON ---------- */
-
-    const replyBtn =
-      document.createElement("div");
-
-    replyBtn.className =
-      "reply-btn";
-
-    replyBtn.textContent =
-      "Reply";
-
-
-    replyBtn.onclick = () => {
-
-      replyData = {
-
-        user: msg.user,
-
-        text: msg.text
-
-      };
-
-
-      replyingTo.textContent =
-        `Replying to ${msg.user}: ${msg.text}`;
-
-
-      replyingTo.style.display =
-        "block";
-
-    };
-
-
-    /* ---------- REPLY PREVIEW ---------- */
-
-    if (msg.reply) {
-
-      const rp =
-        document.createElement("div");
-
-      rp.className =
-        "reply-preview";
-
-      rp.textContent =
-        msg.reply.user +
-        ": " +
-        msg.reply.text;
-
-      div.appendChild(rp);
-
+    // ---------------- Messages ----------------
+    function sendMessage(){
+      if(!myUser) myUser=document.getElementById("username").value.trim();
+      const text=document.getElementById("message").value.trim();
+      if(!text || !myUser) return;
+      db.push({user:myUser,text,reply:replyData,timestamp:Date.now()});
+      replyData=null; document.getElementById("replyingTo").style.display="none"; document.getElementById("message").value="";
     }
 
+    function renderMessage(msg){
+      const div=document.createElement("div");
+      div.className="message "+(msg.user===myUser?"me":"other");
 
-    /* ---------- USERNAME ---------- */
-
-    const userDiv =
-      document.createElement("div");
-
-    userDiv.className =
-      "username";
-
-    userDiv.textContent =
-      msg.user;
-
-
-    /* ---------- MESSAGE TEXT ---------- */
-
-    const textDiv =
-      document.createElement("div");
-
-    textDiv.textContent =
-      msg.text;
-
-
-    /* ---------- TIMESTAMP ---------- */
-
-    const timeDiv =
-      document.createElement("div");
-
-    timeDiv.className =
-      "time";
-
-
-    const timestamp =
-      Number(msg.timestamp);
-
-
-    /*
-      Protect against broken timestamps.
-    */
-
-    if (
-      Number.isFinite(timestamp)
-    ) {
-
-      const d =
-        new Date(timestamp);
-
-      let h =
-        d.getHours();
-
-      let m =
-        d.getMinutes()
-         .toString()
-         .padStart(2, "0");
-
-
-      timeDiv.textContent =
-        `${h % 12 || 12}:${m} ${
-          h >= 12
-            ? "PM"
-            : "AM"
-        }`;
-
-    }
-
-
-    /* ---------- BUILD MESSAGE ---------- */
-
-    div.append(
-
-      replyBtn,
-
-      userDiv,
-
-      textDiv,
-
-      timeDiv
-
-    );
-
-
-    messages.appendChild(div);
-
-
-    /*
-      Scroll to newest message.
-    */
-
-    messages.scrollTop =
-      messages.scrollHeight;
-
-  }
-
-
-  /* =====================================================
-     DARK MODE
-     ===================================================== */
-
-  function toggleDarkMode() {
-
-    document.body.classList.toggle(
-      "dark"
-    );
-
-  }
-
-
-  /* =====================================================
-     ENTER TO SEND
-     ===================================================== */
-
-  message.addEventListener(
-    "keydown",
-    e => {
-
-      if (e.key === "Enter") {
-
-        e.preventDefault();
-
-        sendMessage();
-
+      const replyBtn=document.createElement("div");
+      replyBtn.className="reply-btn"; replyBtn.textContent="Reply";
+      replyBtn.onclick=()=>{ replyData={user:msg.user,text:msg.text}; 
+        const r=document.getElementById("replyingTo"); 
+        r.textContent=`Replying to ${msg.user}: ${msg.text}`; r.style.display="block";
       }
 
+      if(msg.reply){ const rp=document.createElement("div"); rp.className="reply-preview"; rp.textContent=msg.reply.user+": "+msg.reply.text; div.appendChild(rp); }
+
+      const userDiv=document.createElement("div"); userDiv.className="username"; userDiv.textContent=msg.user;
+      const textDiv=document.createElement("div"); textDiv.textContent=msg.text;
+      const timeDiv=document.createElement("div"); timeDiv.className="time";
+      const d=new Date(msg.timestamp); let h=d.getHours(), m=d.getMinutes().toString().padStart(2,"0");
+      timeDiv.textContent=`${h%12||12}:${m} ${h>=12?"PM":"AM"}`;
+
+      div.append(replyBtn,userDiv,textDiv,timeDiv);
+      document.getElementById("messages").appendChild(div);
+      document.getElementById("messages").scrollTop=document.getElementById("messages").scrollHeight;
     }
-  );
+    document.getElementById("message").addEventListener("keydown",e=>{ if(e.key==="Enter") sendMessage(); });
 
+    // ---------------- Dark Mode ----------------
+    function toggleDarkMode(){ document.body.classList.toggle("dark"); applyThemeFromSelect(); }
 
-  /* =====================================================
-     SAVE USERNAME
-     ===================================================== */
+    // ---------------- Room Name ----------------
+    function setCustomRoomName(room){ const name=prompt("Name this chat (only for you):"); if(!name) return; localStorage.setItem("roomName_"+room,name); applyRoomName(room); }
+    function applyRoomName(room){ const n=localStorage.getItem("roomName_"+room); if(n) document.getElementById("chatHeader").textContent=n; }
 
-  username.addEventListener(
-    "change",
-    () => {
-
-      const name =
-        username.value.trim();
-
-
-      if (!name) {
-
-        return;
-
-      }
-
-
-      myUser = name;
-
-
-      localStorage.setItem(
-        "miniChatUsername",
-        name
-      );
-
+    // ---------------- Themes ----------------
+    function applyThemeFromSelect(){
+      const sel=document.getElementById("themeSelect").value;
+      if(!currentRoom) return;
+      localStorage.setItem("roomTheme_"+currentRoom,sel);
+      const theme=themes[sel];
+      document.getElementById("chatBox").style.background=theme.bg;
+      document.querySelectorAll(".message").forEach(div=>{ div.classList.contains("me")? div.style.background=theme.me : div.style.background=theme.other; });
     }
-  );
-
-</script>
-
+    function loadTheme(room){ const saved=localStorage.getItem("roomTheme_"+room)||"default"; document.getElementById("themeSelect").value=saved; applyThemeFromSelect(); }
+  </script>
 </body>
 </html>
