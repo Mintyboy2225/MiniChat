@@ -13,13 +13,13 @@
       display: flex;
       justify-content: center;
       margin-top: 40px;
-      transition: background 0.3s;
+      transition: background 0.3s, color 0.3s;
     }
 
     @keyframes gradientBG {
-      0% {background-position: 0% 50%;}
-      50% {background-position: 100% 50%;}
-      100% {background-position: 0% 50%;}
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
     }
 
     /* ---------- DARK MODE ---------- */
@@ -59,12 +59,17 @@
       border: none;
       outline: none;
       font-size: 14px;
+      box-sizing: border-box;
     }
 
     button {
       background: #7c3aed;
       color: white;
       cursor: pointer;
+    }
+
+    button:hover {
+      filter: brightness(1.08);
     }
 
     /* ---------- CHAT ---------- */
@@ -75,6 +80,7 @@
       background: #f8f8f8;
       border-radius: 20px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      overflow: hidden;
       transition: background 0.3s;
     }
 
@@ -99,6 +105,7 @@
       padding: 10px;
       border-radius: 15px;
       position: relative;
+      word-wrap: break-word;
     }
 
     .me {
@@ -162,6 +169,15 @@
       background: rgba(0,0,0,0.1);
       display: none;
     }
+
+    #username,
+    #message {
+      margin: 0 8px 8px 8px;
+    }
+
+    #chat > button {
+      margin: 0 8px 8px 8px;
+    }
   </style>
 </head>
 
@@ -174,19 +190,29 @@
 </div>
 
 <div id="chat">
+
   <div id="chatHeader"></div>
+
   <div id="messages"></div>
+
   <div id="replyingTo"></div>
+
   <input id="username" placeholder="Your name">
+
   <input id="message" placeholder="Type a message">
+
   <button onclick="sendMessage()">Send</button>
+
   <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
+  /* ---------- FIREBASE ---------- */
+
   firebase.initializeApp({
     apiKey: "AIzaSyCR_fzXg5elyqPiBFxjn7l98y7pHFtFrBI",
     authDomain: "chat-85bb8.firebaseapp.com",
@@ -195,109 +221,343 @@
     appId: "1:925323589808:web:6b599f66cbbbe0f7e1e375"
   });
 
-  let roomCode, db, myUser = "", replyData = null;
+
+  /* ---------- VARIABLES ---------- */
+
+  let roomCode = "";
+  let db = null;
+  let myUser = "";
+  let replyData = null;
   let unread = 0;
+
   const baseTitle = "Mini Chat";
 
-  function randomRoomCode() {
-    return Math.random().toString(36).substring(2,7).toUpperCase();
+
+  /* ---------- LOAD SAVED USERNAME ---------- */
+
+  const savedUsername = localStorage.getItem("miniChatUsername");
+
+  if (savedUsername) {
+    username.value = savedUsername;
+    myUser = savedUsername;
   }
+
+
+  /* ---------- ROOM FUNCTIONS ---------- */
+
+  function randomRoomCode() {
+    return Math.random()
+      .toString(36)
+      .substring(2, 7)
+      .toUpperCase();
+  }
+
 
   function createRoom() {
     roomCode = randomRoomCode();
     startChat();
   }
 
+
   function joinRoom() {
-    roomCode = roomCodeInput.value.trim();
-    if (!roomCode) return;
+    const enteredCode = roomCodeInput.value.trim().toUpperCase();
+
+    if (!enteredCode) return;
+
+    roomCode = enteredCode;
+
     startChat();
   }
 
+
+  /* ---------- START CHAT ---------- */
+
   function startChat() {
-    chatHeader.textContent = "Room: " + roomCode;
+
     roomSelection.style.display = "none";
     chat.style.display = "flex";
 
-    db = firebase.database().ref("rooms/" + roomCode + "/messages");
+    chatHeader.textContent = "Room: " + roomCode;
+
+    /*
+      Remove the previous Firebase listener before
+      creating a new one.
+
+      This prevents duplicate messages when rooms
+      are switched later.
+    */
+
+    if (db) {
+      db.off();
+    }
+
+    db = firebase
+      .database()
+      .ref("rooms/" + roomCode + "/messages");
+
+
+    /*
+      Clear the current message display.
+    */
+
+    messages.innerHTML = "";
+
+
+    /*
+      Listen for new messages.
+    */
 
     db.on("child_added", snap => {
+
+      const msg = snap.val();
+
       if (!document.hasFocus()) {
+
         unread++;
-        document.title = `${baseTitle} (${unread})`;
+
+        document.title =
+          `${baseTitle} (${unread})`;
       }
-      renderMessage(snap.val());
+
+      renderMessage(msg);
     });
   }
 
+
+  /* ---------- TAB NOTIFICATIONS ---------- */
+
   window.addEventListener("focus", () => {
+
     unread = 0;
+
     document.title = baseTitle;
   });
 
+
+  /* ---------- SEND MESSAGE ---------- */
+
   function sendMessage() {
-    if (!myUser) myUser = username.value.trim();
+
+    /*
+      Get username if we don't already have it.
+    */
+
+    if (!myUser) {
+
+      myUser = username.value.trim();
+
+      if (!myUser) return;
+
+      localStorage.setItem(
+        "miniChatUsername",
+        myUser
+      );
+    }
+
+
     const text = message.value.trim();
-    if (!text || !myUser) return;
+
+    if (!text) return;
+
+
+    /*
+      Send message to Firebase.
+    */
 
     db.push({
+
       user: myUser,
-      text,
+
+      text: text,
+
       reply: replyData,
+
       timestamp: Date.now()
     });
 
+
+    /*
+      Clear reply state.
+    */
+
     replyData = null;
+
     replyingTo.style.display = "none";
+
     message.value = "";
   }
 
-  function renderMessage(msg) {
-    const div = document.createElement("div");
-    div.className = "message " + (msg.user === myUser ? "me" : "other");
 
-    const replyBtn = document.createElement("div");
+  /* ---------- RENDER MESSAGE ---------- */
+
+  function renderMessage(msg) {
+
+    const div = document.createElement("div");
+
+    div.className =
+      "message " +
+      (msg.user === myUser ? "me" : "other");
+
+
+    /* ---------- REPLY BUTTON ---------- */
+
+    const replyBtn =
+      document.createElement("div");
+
     replyBtn.className = "reply-btn";
+
     replyBtn.textContent = "Reply";
+
+
     replyBtn.onclick = () => {
-      replyData = { user: msg.user, text: msg.text };
-      replyingTo.textContent = `Replying to ${msg.user}: ${msg.text}`;
+
+      replyData = {
+        user: msg.user,
+        text: msg.text
+      };
+
+      replyingTo.textContent =
+        `Replying to ${msg.user}: ${msg.text}`;
+
       replyingTo.style.display = "block";
     };
 
+
+    /* ---------- REPLY PREVIEW ---------- */
+
     if (msg.reply) {
-      const rp = document.createElement("div");
+
+      const rp =
+        document.createElement("div");
+
       rp.className = "reply-preview";
-      rp.textContent = msg.reply.user + ": " + msg.reply.text;
+
+      rp.textContent =
+        msg.reply.user +
+        ": " +
+        msg.reply.text;
+
       div.appendChild(rp);
     }
 
-    const userDiv = document.createElement("div");
+
+    /* ---------- USERNAME ---------- */
+
+    const userDiv =
+      document.createElement("div");
+
     userDiv.className = "username";
+
     userDiv.textContent = msg.user;
 
-    const textDiv = document.createElement("div");
+
+    /* ---------- MESSAGE TEXT ---------- */
+
+    const textDiv =
+      document.createElement("div");
+
     textDiv.textContent = msg.text;
 
-    const timeDiv = document.createElement("div");
-    const d = new Date(msg.timestamp);
-    let h = d.getHours();
-    let m = d.getMinutes().toString().padStart(2, "0");
-    timeDiv.className = "time";
-    timeDiv.textContent = `${h % 12 || 12}:${m} ${h >= 12 ? "PM" : "AM"}`;
 
-    div.append(replyBtn, userDiv, textDiv, timeDiv);
+    /* ---------- TIMESTAMP ---------- */
+
+    const timeDiv =
+      document.createElement("div");
+
+    timeDiv.className = "time";
+
+
+    const timestamp =
+      Number(msg.timestamp);
+
+
+    /*
+      Prevent NaN timestamps from appearing
+      if an old/broken Firebase message exists.
+    */
+
+    if (!Number.isNaN(timestamp)) {
+
+      const d = new Date(timestamp);
+
+      let h = d.getHours();
+
+      let m =
+        d.getMinutes()
+         .toString()
+         .padStart(2, "0");
+
+      timeDiv.textContent =
+        `${h % 12 || 12}:${m} ${
+          h >= 12 ? "PM" : "AM"
+        }`;
+
+    } else {
+
+      timeDiv.textContent = "";
+    }
+
+
+    /* ---------- BUILD MESSAGE ---------- */
+
+    div.append(
+      replyBtn,
+      userDiv,
+      textDiv,
+      timeDiv
+    );
+
+
     messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
+
+
+    /*
+      Keep the newest message visible.
+    */
+
+    messages.scrollTop =
+      messages.scrollHeight;
   }
 
+
+  /* ---------- DARK MODE ---------- */
+
   function toggleDarkMode() {
+
     document.body.classList.toggle("dark");
   }
 
+
+  /* ---------- ENTER TO SEND ---------- */
+
   message.addEventListener("keydown", e => {
-    if (e.key === "Enter") sendMessage();
+
+    if (e.key === "Enter") {
+
+      e.preventDefault();
+
+      sendMessage();
+    }
   });
+
+
+  /* ---------- SAVE USERNAME WHEN CHANGED ---------- */
+
+  username.addEventListener("change", () => {
+
+    const name =
+      username.value.trim();
+
+    if (!name) return;
+
+    myUser = name;
+
+    localStorage.setItem(
+      "miniChatUsername",
+      name
+    );
+  });
+
 </script>
 
 </body>
