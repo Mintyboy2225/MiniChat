@@ -183,11 +183,27 @@
 
 <body>
 
+<!-- ---------- ROOM SELECTION ---------- -->
+
 <div id="roomSelection">
-  <input id="roomCodeInput" placeholder="Enter Room Code">
-  <button onclick="joinRoom()">Join Room</button>
-  <button onclick="createRoom()">Create New Room</button>
+
+  <input
+    id="roomCodeInput"
+    placeholder="Enter Room Code"
+  >
+
+  <button onclick="joinRoom()">
+    Join Room
+  </button>
+
+  <button onclick="createRoom()">
+    Create New Room
+  </button>
+
 </div>
+
+
+<!-- ---------- CHAT ---------- -->
 
 <div id="chat">
 
@@ -197,119 +213,201 @@
 
   <div id="replyingTo"></div>
 
-  <input id="username" placeholder="Your name">
+  <input
+    id="username"
+    placeholder="Your name"
+  >
 
-  <input id="message" placeholder="Type a message">
+  <input
+    id="message"
+    placeholder="Type a message"
+  >
 
-  <button onclick="sendMessage()">Send</button>
+  <button onclick="sendMessage()">
+    Send
+  </button>
 
-  <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+  <button onclick="toggleDarkMode()">
+    Toggle Dark Mode
+  </button>
 
 </div>
+
+
+<!-- ---------- FIREBASE ---------- -->
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
+
 <script>
-  /* ---------- FIREBASE ---------- */
+
+  /* =====================================================
+     FIREBASE
+     ===================================================== */
 
   firebase.initializeApp({
+
     apiKey: "AIzaSyCR_fzXg5elyqPiBFxjn7l98y7pHFtFrBI",
+
     authDomain: "chat-85bb8.firebaseapp.com",
-    databaseURL: "https://chat-85bb8-default-rtdb.firebaseio.com",
+
+    databaseURL:
+      "https://chat-85bb8-default-rtdb.firebaseio.com",
+
     projectId: "chat-85bb8",
-    appId: "1:925323589808:web:6b599f66cbbbe0f7e1e375"
+
+    appId:
+      "1:925323589808:web:6b599f66cbbbe0f7e1e375"
+
   });
 
 
-  /* ---------- VARIABLES ---------- */
+  /* =====================================================
+     VARIABLES
+     ===================================================== */
 
   let roomCode = "";
+
   let db = null;
+
   let myUser = "";
+
   let replyData = null;
+
   let unread = 0;
 
   const baseTitle = "Mini Chat";
 
 
-  /* ---------- LOAD SAVED USERNAME ---------- */
+  /* =====================================================
+     SAVED USERNAME
+     ===================================================== */
 
-  const savedUsername = localStorage.getItem("miniChatUsername");
+  const savedUsername =
+    localStorage.getItem("miniChatUsername");
 
   if (savedUsername) {
+
     username.value = savedUsername;
+
     myUser = savedUsername;
+
   }
 
 
-  /* ---------- ROOM FUNCTIONS ---------- */
+  /* =====================================================
+     ROOM CODE GENERATOR
+     ===================================================== */
 
   function randomRoomCode() {
+
     return Math.random()
       .toString(36)
       .substring(2, 7)
       .toUpperCase();
+
   }
 
+
+  /* =====================================================
+     CREATE ROOM
+     ===================================================== */
 
   function createRoom() {
+
     roomCode = randomRoomCode();
+
     startChat();
+
   }
 
 
-  function joinRoom() {
-    const enteredCode = roomCodeInput.value.trim().toUpperCase();
+  /* =====================================================
+     JOIN ROOM
+     ===================================================== */
 
-    if (!enteredCode) return;
+  function joinRoom() {
+
+    const enteredCode =
+      roomCodeInput.value
+        .trim()
+        .toUpperCase();
+
+    if (!enteredCode) {
+
+      alert("Please enter a room code.");
+
+      return;
+
+    }
 
     roomCode = enteredCode;
 
     startChat();
+
   }
 
 
-  /* ---------- START CHAT ---------- */
+  /* =====================================================
+     START CHAT
+     ===================================================== */
 
   function startChat() {
 
     roomSelection.style.display = "none";
+
     chat.style.display = "flex";
 
-    chatHeader.textContent = "Room: " + roomCode;
+    chatHeader.textContent =
+      "Room: " + roomCode;
+
 
     /*
-      Remove the previous Firebase listener before
-      creating a new one.
-
-      This prevents duplicate messages when rooms
-      are switched later.
+      If another Firebase listener exists,
+      remove it first.
     */
 
     if (db) {
-      db.off();
-    }
 
-    db = firebase
-      .database()
-      .ref("rooms/" + roomCode + "/messages");
+      db.off();
+
+    }
 
 
     /*
-      Clear the current message display.
+      Connect to this room.
+    */
+
+    db = firebase
+      .database()
+      .ref(
+        "rooms/" +
+        roomCode +
+        "/messages"
+      );
+
+
+    /*
+      Clear messages currently on screen.
     */
 
     messages.innerHTML = "";
 
 
     /*
-      Listen for new messages.
+      Listen for messages.
     */
 
     db.on("child_added", snap => {
 
       const msg = snap.val();
+
+
+      /*
+        Notification when the tab
+        isn't currently focused.
+      */
 
       if (!document.hasFocus()) {
 
@@ -317,54 +415,113 @@
 
         document.title =
           `${baseTitle} (${unread})`;
+
       }
 
+
       renderMessage(msg);
+
     });
+
   }
 
 
-  /* ---------- TAB NOTIFICATIONS ---------- */
+  /* =====================================================
+     TAB NOTIFICATIONS
+     ===================================================== */
 
-  window.addEventListener("focus", () => {
+  window.addEventListener(
+    "focus",
+    () => {
 
-    unread = 0;
+      unread = 0;
 
-    document.title = baseTitle;
-  });
+      document.title = baseTitle;
+
+    }
+  );
 
 
-  /* ---------- SEND MESSAGE ---------- */
+  /* =====================================================
+     SEND MESSAGE
+     ===================================================== */
 
   function sendMessage() {
 
     /*
-      Get username if we don't already have it.
+      Get username.
     */
 
     if (!myUser) {
 
-      myUser = username.value.trim();
+      myUser =
+        username.value.trim();
 
-      if (!myUser) return;
+      if (!myUser) {
+
+        alert(
+          "Please enter your name first."
+        );
+
+        username.focus();
+
+        return;
+
+      }
+
+
+      /*
+        Remember username.
+      */
 
       localStorage.setItem(
         "miniChatUsername",
         myUser
       );
+
     }
 
 
-    const text = message.value.trim();
+    /*
+      Get message text.
+    */
 
-    if (!text) return;
+    const text =
+      message.value.trim();
 
 
     /*
-      Send message to Firebase.
+      Don't send empty messages.
     */
 
-    db.push({
+    if (!text) {
+
+      return;
+
+    }
+
+
+    /*
+      Make sure Firebase
+      is connected to a room.
+    */
+
+    if (!db) {
+
+      alert(
+        "You aren't connected to a room."
+      );
+
+      return;
+
+    }
+
+
+    /*
+      Create message object.
+    */
+
+    const newMessage = {
 
       user: myUser,
 
@@ -373,30 +530,76 @@
       reply: replyData,
 
       timestamp: Date.now()
-    });
+
+    };
 
 
     /*
-      Clear reply state.
+      SEND TO FIREBASE.
+
+      Using .then() and .catch()
+      lets us see if Firebase rejects
+      the message.
     */
 
-    replyData = null;
+    db.push(newMessage)
 
-    replyingTo.style.display = "none";
+      .then(() => {
 
-    message.value = "";
+        /*
+          Message successfully sent.
+        */
+
+        replyData = null;
+
+        replyingTo.style.display =
+          "none";
+
+        message.value = "";
+
+        message.focus();
+
+      })
+
+      .catch(error => {
+
+        console.error(
+          "Mini Chat Firebase error:",
+          error
+        );
+
+        alert(
+          "Message could not be sent.\n\n" +
+          error.message
+        );
+
+      });
+
   }
 
 
-  /* ---------- RENDER MESSAGE ---------- */
+  /* =====================================================
+     RENDER MESSAGE
+     ===================================================== */
 
   function renderMessage(msg) {
 
-    const div = document.createElement("div");
+    const div =
+      document.createElement("div");
+
+
+    /*
+      Determine whether the message
+      belongs to us.
+    */
 
     div.className =
       "message " +
-      (msg.user === myUser ? "me" : "other");
+      (
+        msg.user === myUser
+          ? "me"
+          : "other"
+      );
 
 
     /* ---------- REPLY BUTTON ---------- */
@@ -404,22 +607,31 @@
     const replyBtn =
       document.createElement("div");
 
-    replyBtn.className = "reply-btn";
+    replyBtn.className =
+      "reply-btn";
 
-    replyBtn.textContent = "Reply";
+    replyBtn.textContent =
+      "Reply";
 
 
     replyBtn.onclick = () => {
 
       replyData = {
+
         user: msg.user,
+
         text: msg.text
+
       };
+
 
       replyingTo.textContent =
         `Replying to ${msg.user}: ${msg.text}`;
 
-      replyingTo.style.display = "block";
+
+      replyingTo.style.display =
+        "block";
+
     };
 
 
@@ -430,7 +642,8 @@
       const rp =
         document.createElement("div");
 
-      rp.className = "reply-preview";
+      rp.className =
+        "reply-preview";
 
       rp.textContent =
         msg.reply.user +
@@ -438,6 +651,7 @@
         msg.reply.text;
 
       div.appendChild(rp);
+
     }
 
 
@@ -446,9 +660,11 @@
     const userDiv =
       document.createElement("div");
 
-    userDiv.className = "username";
+    userDiv.className =
+      "username";
 
-    userDiv.textContent = msg.user;
+    userDiv.textContent =
+      msg.user;
 
 
     /* ---------- MESSAGE TEXT ---------- */
@@ -456,7 +672,8 @@
     const textDiv =
       document.createElement("div");
 
-    textDiv.textContent = msg.text;
+    textDiv.textContent =
+      msg.text;
 
 
     /* ---------- TIMESTAMP ---------- */
@@ -464,7 +681,8 @@
     const timeDiv =
       document.createElement("div");
 
-    timeDiv.className = "time";
+    timeDiv.className =
+      "time";
 
 
     const timestamp =
@@ -472,39 +690,47 @@
 
 
     /*
-      Prevent NaN timestamps from appearing
-      if an old/broken Firebase message exists.
+      Protect against broken timestamps.
     */
 
-    if (!Number.isNaN(timestamp)) {
+    if (
+      Number.isFinite(timestamp)
+    ) {
 
-      const d = new Date(timestamp);
+      const d =
+        new Date(timestamp);
 
-      let h = d.getHours();
+      let h =
+        d.getHours();
 
       let m =
         d.getMinutes()
          .toString()
          .padStart(2, "0");
 
+
       timeDiv.textContent =
         `${h % 12 || 12}:${m} ${
-          h >= 12 ? "PM" : "AM"
+          h >= 12
+            ? "PM"
+            : "AM"
         }`;
 
-    } else {
-
-      timeDiv.textContent = "";
     }
 
 
     /* ---------- BUILD MESSAGE ---------- */
 
     div.append(
+
       replyBtn,
+
       userDiv,
+
       textDiv,
+
       timeDiv
+
     );
 
 
@@ -512,51 +738,77 @@
 
 
     /*
-      Keep the newest message visible.
+      Scroll to newest message.
     */
 
     messages.scrollTop =
       messages.scrollHeight;
+
   }
 
 
-  /* ---------- DARK MODE ---------- */
+  /* =====================================================
+     DARK MODE
+     ===================================================== */
 
   function toggleDarkMode() {
 
-    document.body.classList.toggle("dark");
+    document.body.classList.toggle(
+      "dark"
+    );
+
   }
 
 
-  /* ---------- ENTER TO SEND ---------- */
+  /* =====================================================
+     ENTER TO SEND
+     ===================================================== */
 
-  message.addEventListener("keydown", e => {
+  message.addEventListener(
+    "keydown",
+    e => {
 
-    if (e.key === "Enter") {
+      if (e.key === "Enter") {
 
-      e.preventDefault();
+        e.preventDefault();
 
-      sendMessage();
+        sendMessage();
+
+      }
+
     }
-  });
+  );
 
 
-  /* ---------- SAVE USERNAME WHEN CHANGED ---------- */
+  /* =====================================================
+     SAVE USERNAME
+     ===================================================== */
 
-  username.addEventListener("change", () => {
+  username.addEventListener(
+    "change",
+    () => {
 
-    const name =
-      username.value.trim();
+      const name =
+        username.value.trim();
 
-    if (!name) return;
 
-    myUser = name;
+      if (!name) {
 
-    localStorage.setItem(
-      "miniChatUsername",
-      name
-    );
-  });
+        return;
+
+      }
+
+
+      myUser = name;
+
+
+      localStorage.setItem(
+        "miniChatUsername",
+        name
+      );
+
+    }
+  );
 
 </script>
 
